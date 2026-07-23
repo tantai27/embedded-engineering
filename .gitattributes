@@ -1,0 +1,24 @@
+# Default
+* text=auto eol=lf
+
+# Source files
+*.c        text eol=lf
+*.h        text eol=lf
+*.cpp      text eol=lf
+*.hpp      text eol=lf
+*.txt      text eol=lf
+*.md       text eol=lf
+*.mk       text eol=lf
+Makefile   text eol=lf
+
+# Windows scripts
+*.bat      text eol=crlf
+*.cmd      text eol=crlf
+
+# Binary
+*.png      binary
+*.jpg      binary
+*.jpeg     binary
+*.gif      binary
+*.pdf      binary
+*.exe      binary
