@@ -1,10 +1,41 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "set_bit.h"
 
 #define TEST_PASS    (0)
 #define TEST_FAIL    (1)
+
+typedef struct
+{
+    const char *description;
+    int (*function)(void);
+} test_case_t;
+
+static uint32_t total_tests  = 0U;
+static uint32_t passed_tests = 0U;
+
+static void report_test(uint32_t current_test,
+                        uint32_t planned_tests,
+                        const char *description,
+                        int result)
+{
+    ++total_tests;
+
+    if (TEST_PASS == result)
+    {
+        ++passed_tests;
+    }
+
+    (void)printf("[%02u/%02u] %-30s [%s]\n",
+                 current_test,
+                 planned_tests,
+                 description,
+                 (TEST_PASS == result) ? "PASS" : "FAIL");
+
+    (void)fflush(stdout);
+}
 
 static int test_set_bit_0(void)
 {
@@ -96,25 +127,54 @@ static int test_invalid_bit(void)
     return TEST_PASS;
 }
 
+static const test_case_t test_cases[] =
+{
+    { "Set bit 0",                    test_set_bit_0 },
+    { "Set bit 31",                   test_set_bit_31 },
+    { "Set already-set bit",          test_set_bit_already_set },
+    { "Set bit on non-zero register", test_set_bit_non_zero_register },
+    { "Null pointer",                 test_null_pointer },
+    { "Invalid bit position",         test_invalid_bit }
+};
+
 int main(void)
 {
-    (void)printf("test_set_bit_0                : %s\n",
-                 (TEST_PASS == test_set_bit_0()) ? "PASS" : "FAIL");
+    const uint32_t planned_tests =
+        (uint32_t)(sizeof(test_cases) / sizeof(test_cases[0]));
 
-    (void)printf("test_set_bit_31               : %s\n",
-                 (TEST_PASS == test_set_bit_31()) ? "PASS" : "FAIL");
+    (void)printf("========================================\n");
+    (void)printf("Running set_bit unit tests\n");
+    (void)printf("========================================\n");
 
-    (void)printf("test_set_bit_already_set      : %s\n",
-                 (TEST_PASS == test_set_bit_already_set()) ? "PASS" : "FAIL");
+    for (uint32_t i = 0U; i < planned_tests; ++i)
+    {
+        report_test(i + 1U,
+                    planned_tests,
+                    test_cases[i].description,
+                    test_cases[i].function());
+    }
 
-    (void)printf("test_set_bit_non_zero_register: %s\n",
-                 (TEST_PASS == test_set_bit_non_zero_register()) ? "PASS" : "FAIL");
+    const uint32_t failed_tests = total_tests - passed_tests;
 
-    (void)printf("test_null_pointer             : %s\n",
-                 (TEST_PASS == test_null_pointer()) ? "PASS" : "FAIL");
+    (void)printf("----------------------------------------\n");
+    (void)printf("Summary\n");
+    (void)printf("----------------------------------------\n");
 
-    (void)printf("test_invalid_bit              : %s\n",
-                 (TEST_PASS == test_invalid_bit()) ? "PASS" : "FAIL");
+    (void)printf("Executed : %u/%u\n",
+                 total_tests,
+                 planned_tests);
 
-    return 0;
+    (void)printf("Passed   : %u/%u (%.0f%%)\n",
+                 passed_tests,
+                 planned_tests,
+                 (100.0 * (double)passed_tests) / (double)planned_tests);
+
+    (void)printf("Failed   : %u/%u (%.0f%%)\n",
+                 failed_tests,
+                 planned_tests,
+                 (100.0 * (double)failed_tests) / (double)planned_tests);
+
+    (void)printf("========================================\n");
+
+    return (failed_tests == 0U) ? EXIT_SUCCESS : EXIT_FAILURE;
 }
