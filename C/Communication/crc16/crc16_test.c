@@ -4,58 +4,82 @@
 
 #include "crc16.h"
 
-#define TEST_CASE_COUNT (8U)
+#define TEST_PASS    (0)
+#define TEST_FAIL    (1)
 
 typedef struct
 {
-    const char *name;
+    const char *description;
     const uint8_t *data;
     uint32_t length;
     uint16_t expected_crc;
     crc16_status_t expected_status;
+    uint8_t null_output;
 } test_case_t;
 
-static uint32_t run_test(const test_case_t * const test_case,
-                         const uint32_t test_number)
+static uint32_t total_tests  = 0U;
+static uint32_t passed_tests = 0U;
+
+static void report_test(uint32_t current_test,
+                        uint32_t planned_tests,
+                        const char *description,
+                        int result)
+{
+    ++total_tests;
+
+    if (TEST_PASS == result)
+    {
+        ++passed_tests;
+    }
+
+    (void)printf("[%02u/%02u] %-30s [%s]\n",
+                 current_test,
+                 planned_tests,
+                 description,
+                 (TEST_PASS == result) ? "PASS" : "FAIL");
+
+    (void)fflush(stdout);
+}
+
+static int run_test(const test_case_t * const test_case)
 {
     uint16_t actual_crc = 0U;
+    uint16_t *output_crc = &actual_crc;
+
+    if (0U != test_case->null_output)
+    {
+        output_crc = NULL;
+    }
 
     const crc16_status_t actual_status =
         crc16_calculate(test_case->data,
                         test_case->length,
-                        &actual_crc);
+                        output_crc);
 
-    if ((actual_status == test_case->expected_status) &&
-        ((CRC16_STATUS_SUCCESS != actual_status) ||
-         (actual_crc == test_case->expected_crc)))
+    if (actual_status != test_case->expected_status)
     {
-        (void)printf("[%02u/%02u] %-30s [PASS]\n",
-                     test_number,
-                     TEST_CASE_COUNT,
-                     test_case->name);
+        (void)printf("         Expected status: %u, Actual status: %u\n",
+                     (uint32_t)test_case->expected_status,
+                     (uint32_t)actual_status);
 
-        return 1U;
+        return TEST_FAIL;
     }
-
-    (void)printf("[%02u/%02u] %-30s [FAIL]\n",
-                 test_number,
-                 TEST_CASE_COUNT,
-                 test_case->name);
-
-    (void)printf("         Expected status: %u, Actual status: %u\n",
-                 (uint32_t)test_case->expected_status,
-                 (uint32_t)actual_status);
 
     if (CRC16_STATUS_SUCCESS == test_case->expected_status)
     {
-        (void)printf("         Expected CRC   : 0x%04X\n",
-                     test_case->expected_crc);
+        if (actual_crc != test_case->expected_crc)
+        {
+            (void)printf("         Expected CRC   : 0x%04X\n",
+                         test_case->expected_crc);
 
-        (void)printf("         Actual CRC     : 0x%04X\n",
-                     actual_crc);
+            (void)printf("         Actual CRC     : 0x%04X\n",
+                         actual_crc);
+
+            return TEST_FAIL;
+        }
     }
 
-    return 0U;
+    return TEST_PASS;
 }
 
 int main(void)
@@ -88,93 +112,107 @@ int main(void)
             data_123456789,
             9U,
             0xBB3DU,
-            CRC16_STATUS_SUCCESS
+            CRC16_STATUS_SUCCESS,
+            0U
         },
         {
             "Single zero byte",
             data_single,
             1U,
             0x0000U,
-            CRC16_STATUS_SUCCESS
+            CRC16_STATUS_SUCCESS,
+            0U
         },
         {
             "Binary data",
             data_binary,
             4U,
-            0x3C0AU,
-            CRC16_STATUS_SUCCESS
+            0xFA10U,
+            CRC16_STATUS_SUCCESS,
+            0U
         },
         {
             "Zero length",
             data_empty,
             0U,
             0x0000U,
-            CRC16_STATUS_SUCCESS
+            CRC16_STATUS_SUCCESS,
+            0U
         },
         {
             "Null data pointer",
             NULL,
             4U,
             0x0000U,
-            CRC16_STATUS_INVALID_ARGUMENT
+            CRC16_STATUS_INVALID_ARGUMENT,
+            0U
         },
         {
             "Null output pointer",
             data_binary,
             4U,
             0x0000U,
-            CRC16_STATUS_INVALID_ARGUMENT
+            CRC16_STATUS_INVALID_ARGUMENT,
+            1U
         },
         {
             "Null data and output",
             NULL,
             4U,
             0x0000U,
-            CRC16_STATUS_INVALID_ARGUMENT
+            CRC16_STATUS_INVALID_ARGUMENT,
+            1U
         },
         {
             "Empty data with valid output",
             data_empty,
             0U,
             0x0000U,
-            CRC16_STATUS_SUCCESS
+            CRC16_STATUS_SUCCESS,
+            0U
         }
     };
 
-    uint32_t index = 0U;
-    uint32_t passed = 0U;
+    const uint32_t planned_tests =
+        (uint32_t)(sizeof(test_cases) / sizeof(test_cases[0]));
 
     (void)printf("========================================\n");
     (void)printf("Running crc16 unit tests\n");
     (void)printf("========================================\n");
 
-    for (index = 0U; index < TEST_CASE_COUNT; ++index)
+    for (uint32_t i = 0U; i < planned_tests; ++i)
     {
-        passed += run_test(&test_cases[index],
-                           index + 1U);
+        const int result = run_test(&test_cases[i]);
+
+        report_test(i + 1U,
+                    planned_tests,
+                    test_cases[i].description,
+                    result);
     }
+
+    const uint32_t failed_tests = total_tests - passed_tests;
 
     (void)printf("----------------------------------------\n");
     (void)printf("Summary\n");
     (void)printf("----------------------------------------\n");
 
     (void)printf("Executed : %u/%u\n",
-                 TEST_CASE_COUNT,
-                 TEST_CASE_COUNT);
+                 total_tests,
+                 planned_tests);
 
     (void)printf("Passed   : %u/%u (%.0f%%)\n",
-                 passed,
-                 TEST_CASE_COUNT,
-                 (100.0 * (double)passed) /
-                 (double)TEST_CASE_COUNT);
+                 passed_tests,
+                 planned_tests,
+                 (100.0 * (double)passed_tests) /
+                 (double)planned_tests);
 
     (void)printf("Failed   : %u/%u (%.0f%%)\n",
-                 TEST_CASE_COUNT - passed,
-                 TEST_CASE_COUNT,
-                 (100.0 * (double)(TEST_CASE_COUNT - passed)) /
-                 (double)TEST_CASE_COUNT);
+                 failed_tests,
+                 planned_tests,
+                 (100.0 * (double)failed_tests) /
+                 (double)planned_tests);
 
     (void)printf("========================================\n");
 
-    return (passed == TEST_CASE_COUNT) ? EXIT_SUCCESS : EXIT_FAILURE;
+    return (failed_tests == 0U) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

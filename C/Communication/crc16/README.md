@@ -34,9 +34,9 @@ The implementation is expected to:
 - Avoid dynamic memory allocation.
 - Follow defensive programming and clean Embedded C coding practices.
 
-The module should provide a small, reusable API suitable for communication
-software, protocol payloads and other embedded applications requiring
-data-integrity verification.
+The module provides a small, reusable API suitable for communication software,
+protocol payloads, and other embedded applications requiring data-integrity
+verification.
 
 ---
 
@@ -56,7 +56,7 @@ crc16/
 | `crc16.h` | Public API and CRC-16 status definitions. |
 | `crc16.c` | CRC-16/IBM calculation implementation. |
 | `crc16_test.c` | Unit tests for CRC calculation and invalid arguments. |
-| `Makefile` | Build, run and clean targets. |
+| `Makefile` | Build, run, and clean targets. |
 | `README.md` | Module documentation and test information. |
 
 ---
@@ -108,14 +108,14 @@ the least-significant bit first and uses the reversed polynomial:
 
 ## Design Decisions
 
-### Byte-by-byte processing
+### Byte-by-byte Processing
 
 The input is processed one byte at a time.
 
-Each byte is XORed into the current CRC state before the individual bits are
-processed.
+Each byte is incorporated into the current CRC state before the individual bits
+are processed.
 
-### Bit-by-bit processing
+### Bit-by-bit Processing
 
 Each input byte contains eight bits.
 
@@ -129,7 +129,10 @@ If set, the CRC is shifted and XORed with the reversed polynomial.
 
 Otherwise, the CRC is only shifted.
 
-### Fixed initial value
+This approach makes the reflected CRC algorithm explicit and helps demonstrate
+the underlying bitwise operations.
+
+### Fixed Initial Value
 
 The CRC state starts with:
 
@@ -139,10 +142,9 @@ The CRC state starts with:
 
 This provides deterministic behavior for every calculation.
 
-### Zero-length input
+### Zero-length Input
 
-A zero-length input is valid when the data pointer and output pointer are
-valid.
+A zero-length input is valid when the data pointer and output pointer are valid.
 
 No input bytes are processed and the resulting CRC remains:
 
@@ -150,7 +152,7 @@ No input bytes are processed and the resulting CRC remains:
 0x0000
 ```
 
-### Read-only input
+### Read-only Input
 
 The input data is declared as:
 
@@ -160,7 +162,7 @@ const uint8_t * const data
 
 The implementation does not modify the input buffer.
 
-### Defensive programming
+### Defensive Programming
 
 The implementation validates:
 
@@ -175,7 +177,10 @@ CRC16_STATUS_INVALID_ARGUMENT
 
 before accessing memory.
 
-### No dynamic memory allocation
+A zero-length input is handled as a valid case when the output pointer is
+valid.
+
+### No Dynamic Memory Allocation
 
 The implementation does not allocate or release memory.
 
@@ -189,6 +194,7 @@ The standard CRC-16/IBM test vector:
 
 ```text
 Input:
+
 "123456789"
 ```
 
@@ -215,6 +221,9 @@ The unit tests verify:
 - Both input and output pointers being `NULL`.
 - Zero-length input with valid pointers.
 
+The `NULL` output test explicitly passes a `NULL` output pointer to the CRC
+function instead of using a valid output buffer.
+
 ### Test Cases
 
 ```text
@@ -228,11 +237,21 @@ The unit tests verify:
 [08/08] Empty data with valid output
 ```
 
+The binary-data test uses the fixed input sequence:
+
+```text
+0x10 0x20 0x30 0x40
+```
+
+to verify CRC processing on arbitrary binary data in addition to the standard
+known vector.
+
 ---
 
 ## Requirements
 
-- GCC (C11 or later)
+- GCC
+- C11 or later
 - GNU Make
 
 Verify the tools are available:
@@ -280,14 +299,14 @@ make run
 ========================================
 Running crc16 unit tests
 ========================================
-[01/08] CRC-16/IBM known vector       [PASS]
-[02/08] Single zero byte              [PASS]
-[03/08] Binary data                   [PASS]
-[04/08] Zero length                   [PASS]
-[05/08] Null data pointer             [PASS]
-[06/08] Null output pointer           [PASS]
-[07/08] Null data and output          [PASS]
-[08/08] Empty data with valid output  [PASS]
+[01/08] CRC-16/IBM known vector        [PASS]
+[02/08] Single zero byte               [PASS]
+[03/08] Binary data                    [PASS]
+[04/08] Zero length                    [PASS]
+[05/08] Null data pointer              [PASS]
+[06/08] Null output pointer            [PASS]
+[07/08] Null data and output           [PASS]
+[08/08] Empty data with valid output   [PASS]
 ----------------------------------------
 Summary
 ----------------------------------------
@@ -300,6 +319,8 @@ Failed   : 0/8 (0%)
 A successful test run returns `EXIT_SUCCESS`.
 
 If one or more tests fail, the test executable returns `EXIT_FAILURE`.
+This causes `make run` to report a non-zero exit status, allowing the failure
+to be detected by automated build or CI systems.
 
 ---
 
@@ -353,3 +374,81 @@ crc16_test
 - Unit testing
 - Makefile
 - Embedded C coding practices
+
+---
+
+## Applications
+
+CRC-16 algorithms are commonly used for detecting accidental data corruption
+in embedded communication systems and digital protocols.
+
+Typical applications include:
+
+- UART communication
+- Serial protocols
+- Industrial communication
+- Sensor data frames
+- Embedded device protocols
+- Packet validation
+- Storage integrity checks
+- Communication payload verification
+
+This module focuses on the CRC calculation mechanism itself rather than a
+specific communication protocol.
+
+---
+
+## Limitations
+
+This module only implements the configured CRC-16/IBM parameter set.
+
+It does not provide:
+
+- Runtime selection of CRC parameters.
+- Hardware CRC acceleration.
+- Streaming state across multiple API calls.
+- Protocol-specific frame handling.
+- Error correction.
+
+The API processes a complete byte array in a single function call.
+
+---
+
+## Complexity
+
+For `N` input bytes, the implementation processes eight bits per byte.
+
+### Time Complexity
+
+```text
+O(N)
+```
+
+### Additional Memory
+
+```text
+O(1)
+```
+
+The implementation uses only a fixed amount of local state regardless of input
+length.
+
+---
+
+## Embedded C Considerations
+
+The module demonstrates several practices relevant to embedded software:
+
+- Fixed-width integer types such as `uint8_t`, `uint16_t`, and `uint32_t`.
+- Explicit pointer validation.
+- Read-only input data through `const`.
+- Explicit status-code handling.
+- Deterministic memory usage.
+- No dynamic memory allocation.
+- Bitwise operations commonly used in communication drivers.
+- A small and reusable API.
+- Unit-testable implementation independent of hardware.
+
+The implementation is intentionally kept simple so that the CRC algorithm and
+its bit-level behavior remain easy to inspect and review.
+```

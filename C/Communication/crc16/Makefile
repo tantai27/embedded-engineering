@@ -1,11 +1,13 @@
-CC      := gcc
-CFLAGS  := -std=c11 -Wall -Wextra -Wpedantic
-TARGET  := crc16_test
+CC := gcc
 
-SRCS    := crc16.c \
-           crc16_test.c
+CFLAGS := -std=c11 -Wall -Wextra -Wpedantic
 
-OBJS    := $(SRCS:.c=.o)
+TARGET := crc16_test
+
+SRCS := crc16.c \
+        crc16_test.c
+
+OBJS := $(SRCS:.c=.o)
 
 .PHONY: all run clean
 
