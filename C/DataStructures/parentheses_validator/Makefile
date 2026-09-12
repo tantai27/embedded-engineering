@@ -1,11 +1,13 @@
-CC      := gcc
-CFLAGS  := -std=c11 -Wall -Wextra -Wpedantic
-TARGET  := parentheses_validator_test
+CC := gcc
 
-SRCS    := parentheses_validator.c \
-           parentheses_validator_test.c
+CFLAGS := -std=c11 -Wall -Wextra -Wpedantic
 
-OBJS    := $(SRCS:.c=.o)
+TARGET := parentheses_validator_test
+
+SRCS := parentheses_validator.c \
+        parentheses_validator_test.c
+
+OBJS := $(SRCS:.c=.o)
 
 .PHONY: all run clean
 
