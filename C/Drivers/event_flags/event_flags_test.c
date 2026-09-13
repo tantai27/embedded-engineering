@@ -1,166 +1,250 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "event_flags.h"
 
-static uint32_t tests_run = 0U;
-static uint32_t tests_passed = 0U;
+#define TEST_PASS    (0)
+#define TEST_FAIL    (1)
 
-#define TEST_ASSERT(condition)                                      \
-    do                                                              \
-    {                                                               \
-        ++tests_run;                                                \
-        if (condition)                                              \
-        {                                                           \
-            ++tests_passed;                                         \
-        }                                                           \
-        else                                                        \
-        {                                                           \
-            printf("FAIL: %s:%u\n", __FILE__, __LINE__);            \
-        }                                                           \
-    } while (0)
+#define TEST_CASE_COUNT    (19U)
 
-static void test_init_success(void)
+typedef struct
+{
+    const char *description;
+    int (*function)(void);
+} test_case_t;
+
+static uint32_t total_tests = 0U;
+static uint32_t passed_tests = 0U;
+
+static void report_test(uint32_t current_test,
+                        uint32_t planned_tests,
+                        const char *description,
+                        int result)
+{
+    ++total_tests;
+
+    if (TEST_PASS == result)
+    {
+        ++passed_tests;
+    }
+
+    (void)printf("[%02u/%02u] %-30s [%s]\n",
+                 current_test,
+                 planned_tests,
+                 description,
+                 (TEST_PASS == result) ? "PASS" : "FAIL");
+}
+
+static int test_init_success(void)
 {
     event_flags_t event_flags;
 
     event_flags.flags = 0xFFFFFFFFUL;
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_init(&event_flags));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_init(&event_flags))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0U == event_flags.flags);
+    if (0U != event_flags.flags)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_init_invalid_argument(void)
+static int test_init_invalid_argument(void)
 {
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_INVALID_ARGUMENT ==
-        event_flags_init(NULL));
+    if (EVENT_FLAGS_STATUS_INVALID_ARGUMENT !=
+        event_flags_init(NULL))
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_set_single_flag(void)
-{
-    event_flags_t event_flags;
-
-    (void)event_flags_init(&event_flags);
-
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_set(&event_flags, 0x00000001UL));
-
-    TEST_ASSERT(0x00000001UL == event_flags.flags);
-}
-
-static void test_set_multiple_flags(void)
+static int test_set_single_flag(void)
 {
     event_flags_t event_flags;
 
     (void)event_flags_init(&event_flags);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_set(&event_flags, 0x00000005UL));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_set(&event_flags, 0x00000001UL))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0x00000005UL == event_flags.flags);
+    if (0x00000001UL != event_flags.flags)
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_set(&event_flags, 0x0000000AUL));
-
-    TEST_ASSERT(0x0000000FUL == event_flags.flags);
+    return TEST_PASS;
 }
 
-static void test_set_existing_flag(void)
+static int test_set_multiple_flags(void)
 {
     event_flags_t event_flags;
 
     (void)event_flags_init(&event_flags);
 
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_set(&event_flags, 0x00000005UL))
+    {
+        return TEST_FAIL;
+    }
+
+    if (0x00000005UL != event_flags.flags)
+    {
+        return TEST_FAIL;
+    }
+
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_set(&event_flags, 0x0000000AUL))
+    {
+        return TEST_FAIL;
+    }
+
+    if (0x0000000FUL != event_flags.flags)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
+}
+
+static int test_set_existing_flag(void)
+{
+    event_flags_t event_flags;
+
+    (void)event_flags_init(&event_flags);
     (void)event_flags_set(&event_flags, 0x00000001UL);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_set(&event_flags, 0x00000001UL));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_set(&event_flags, 0x00000001UL))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0x00000001UL == event_flags.flags);
+    if (0x00000001UL != event_flags.flags)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_set_all_flags(void)
+static int test_set_all_flags(void)
 {
     event_flags_t event_flags;
 
     (void)event_flags_init(&event_flags);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_set(&event_flags, 0xFFFFFFFFUL));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_set(&event_flags, 0xFFFFFFFFUL))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0xFFFFFFFFUL == event_flags.flags);
+    if (0xFFFFFFFFUL != event_flags.flags)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_clear_single_flag(void)
+static int test_clear_single_flag(void)
 {
     event_flags_t event_flags;
 
     (void)event_flags_init(&event_flags);
-
     (void)event_flags_set(&event_flags, 0x00000007UL);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_clear(&event_flags, 0x00000002UL));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_clear(&event_flags, 0x00000002UL))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0x00000005UL == event_flags.flags);
+    if (0x00000005UL != event_flags.flags)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_clear_multiple_flags(void)
+static int test_clear_multiple_flags(void)
 {
     event_flags_t event_flags;
 
     (void)event_flags_init(&event_flags);
-
     (void)event_flags_set(&event_flags, 0x0000000FUL);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_clear(&event_flags, 0x00000005UL));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_clear(&event_flags, 0x00000005UL))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0x0000000AUL == event_flags.flags);
+    if (0x0000000AUL != event_flags.flags)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_clear_unset_flag(void)
+static int test_clear_unset_flag(void)
 {
     event_flags_t event_flags;
 
     (void)event_flags_init(&event_flags);
-
     (void)event_flags_set(&event_flags, 0x00000005UL);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_clear(&event_flags, 0x00000002UL));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_clear(&event_flags, 0x00000002UL))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0x00000005UL == event_flags.flags);
+    if (0x00000005UL != event_flags.flags)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_clear_all_flags(void)
+static int test_clear_all_flags(void)
 {
     event_flags_t event_flags;
 
     (void)event_flags_init(&event_flags);
-
     (void)event_flags_set(&event_flags, 0xFFFFFFFFUL);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_clear(&event_flags, 0xFFFFFFFFUL));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_clear(&event_flags, 0xFFFFFFFFUL))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0U == event_flags.flags);
+    if (0U != event_flags.flags)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_get_flags(void)
+static int test_get_flags(void)
 {
     event_flags_t event_flags;
     uint32_t flags = 0U;
@@ -168,30 +252,43 @@ static void test_get_flags(void)
     (void)event_flags_init(&event_flags);
     (void)event_flags_set(&event_flags, 0x12345678UL);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_get(&event_flags, &flags));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_get(&event_flags, &flags))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0x12345678UL == flags);
+    if (0x12345678UL != flags)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_get_flags_invalid_arguments(void)
+static int test_get_flags_invalid_arguments(void)
 {
     event_flags_t event_flags;
     uint32_t flags = 0U;
 
     (void)event_flags_init(&event_flags);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_INVALID_ARGUMENT ==
-        event_flags_get(NULL, &flags));
+    if (EVENT_FLAGS_STATUS_INVALID_ARGUMENT !=
+        event_flags_get(NULL, &flags))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_INVALID_ARGUMENT ==
-        event_flags_get(&event_flags, NULL));
+    if (EVENT_FLAGS_STATUS_INVALID_ARGUMENT !=
+        event_flags_get(&event_flags, NULL))
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_are_set_all_requested_flags(void)
+static int test_are_set_all_requested_flags(void)
 {
     event_flags_t event_flags;
     uint8_t set = 0U;
@@ -199,14 +296,24 @@ static void test_are_set_all_requested_flags(void)
     (void)event_flags_init(&event_flags);
     (void)event_flags_set(&event_flags, 0x0000000FUL);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_are_set(&event_flags, 0x00000005UL, &set));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_are_set(
+            &event_flags,
+            0x00000005UL,
+            &set))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(1U == set);
+    if (1U != set)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_are_set_partial_flags(void)
+static int test_are_set_partial_flags(void)
 {
     event_flags_t event_flags;
     uint8_t set = 1U;
@@ -214,28 +321,48 @@ static void test_are_set_partial_flags(void)
     (void)event_flags_init(&event_flags);
     (void)event_flags_set(&event_flags, 0x00000005UL);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_are_set(&event_flags, 0x00000003UL, &set));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_are_set(
+            &event_flags,
+            0x00000003UL,
+            &set))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0U == set);
+    if (0U != set)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_are_set_zero_mask(void)
+static int test_are_set_zero_mask(void)
 {
     event_flags_t event_flags;
     uint8_t set = 0U;
 
     (void)event_flags_init(&event_flags);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_are_set(&event_flags, 0U, &set));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_are_set(
+            &event_flags,
+            0U,
+            &set))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(1U == set);
+    if (1U != set)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_are_set_all_flags(void)
+static int test_are_set_all_flags(void)
 {
     event_flags_t event_flags;
     uint8_t set = 0U;
@@ -243,102 +370,241 @@ static void test_are_set_all_flags(void)
     (void)event_flags_init(&event_flags);
     (void)event_flags_set(&event_flags, 0xFFFFFFFFUL);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_are_set(&event_flags, 0xFFFFFFFFUL, &set));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_are_set(
+            &event_flags,
+            0xFFFFFFFFUL,
+            &set))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(1U == set);
+    if (1U != set)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_are_set_invalid_arguments(void)
+static int test_are_set_invalid_arguments(void)
 {
     event_flags_t event_flags;
     uint8_t set = 0U;
 
     (void)event_flags_init(&event_flags);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_INVALID_ARGUMENT ==
-        event_flags_are_set(NULL, 0x00000001UL, &set));
+    if (EVENT_FLAGS_STATUS_INVALID_ARGUMENT !=
+        event_flags_are_set(
+            NULL,
+            0x00000001UL,
+            &set))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_INVALID_ARGUMENT ==
-        event_flags_are_set(&event_flags, 0x00000001UL, NULL));
+    if (EVENT_FLAGS_STATUS_INVALID_ARGUMENT !=
+        event_flags_are_set(
+            &event_flags,
+            0x00000001UL,
+            NULL))
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_null_arguments(void)
+static int test_null_arguments(void)
 {
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_INVALID_ARGUMENT ==
-        event_flags_set(NULL, 0x00000001UL));
+    if (EVENT_FLAGS_STATUS_INVALID_ARGUMENT !=
+        event_flags_set(NULL, 0x00000001UL))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_INVALID_ARGUMENT ==
-        event_flags_clear(NULL, 0x00000001UL));
+    if (EVENT_FLAGS_STATUS_INVALID_ARGUMENT !=
+        event_flags_clear(NULL, 0x00000001UL))
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_boundary_bit_31(void)
+static int test_boundary_bit_31(void)
 {
     event_flags_t event_flags;
     uint8_t set = 0U;
 
     (void)event_flags_init(&event_flags);
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
-        event_flags_set(&event_flags, 0x80000000UL));
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
+        event_flags_set(
+            &event_flags,
+            0x80000000UL))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0x80000000UL == event_flags.flags);
+    if (0x80000000UL != event_flags.flags)
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
         event_flags_are_set(
             &event_flags,
             0x80000000UL,
-            &set));
+            &set))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(1U == set);
+    if (1U != set)
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(
-        EVENT_FLAGS_STATUS_SUCCESS ==
+    if (EVENT_FLAGS_STATUS_SUCCESS !=
         event_flags_clear(
             &event_flags,
-            0x80000000UL));
+            0x80000000UL))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0U == event_flags.flags);
+    if (0U != event_flags.flags)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
 int main(void)
 {
-    test_init_success();
-    test_init_invalid_argument();
+    static const test_case_t test_cases[TEST_CASE_COUNT] =
+    {
+        {
+            "Init success",
+            test_init_success
+        },
+        {
+            "Init invalid argument",
+            test_init_invalid_argument
+        },
+        {
+            "Set single flag",
+            test_set_single_flag
+        },
+        {
+            "Set multiple flags",
+            test_set_multiple_flags
+        },
+        {
+            "Set existing flag",
+            test_set_existing_flag
+        },
+        {
+            "Set all flags",
+            test_set_all_flags
+        },
+        {
+            "Clear single flag",
+            test_clear_single_flag
+        },
+        {
+            "Clear multiple flags",
+            test_clear_multiple_flags
+        },
+        {
+            "Clear unset flag",
+            test_clear_unset_flag
+        },
+        {
+            "Clear all flags",
+            test_clear_all_flags
+        },
+        {
+            "Get flags",
+            test_get_flags
+        },
+        {
+            "Get invalid arguments",
+            test_get_flags_invalid_arguments
+        },
+        {
+            "Are set all requested",
+            test_are_set_all_requested_flags
+        },
+        {
+            "Are set partial flags",
+            test_are_set_partial_flags
+        },
+        {
+            "Are set zero mask",
+            test_are_set_zero_mask
+        },
+        {
+            "Are set all flags",
+            test_are_set_all_flags
+        },
+        {
+            "Are set invalid arguments",
+            test_are_set_invalid_arguments
+        },
+        {
+            "Null arguments",
+            test_null_arguments
+        },
+        {
+            "Boundary bit 31",
+            test_boundary_bit_31
+        }
+    };
 
-    test_set_single_flag();
-    test_set_multiple_flags();
-    test_set_existing_flag();
-    test_set_all_flags();
+    uint32_t index = 0U;
+    int result = TEST_PASS;
 
-    test_clear_single_flag();
-    test_clear_multiple_flags();
-    test_clear_unset_flag();
-    test_clear_all_flags();
+    (void)printf("========================================\n");
+    (void)printf("Running event_flags unit tests\n");
+    (void)printf("========================================\n");
 
-    test_get_flags();
-    test_get_flags_invalid_arguments();
+    for (index = 0U; index < TEST_CASE_COUNT; ++index)
+    {
+        result = test_cases[index].function();
 
-    test_are_set_all_requested_flags();
-    test_are_set_partial_flags();
-    test_are_set_zero_mask();
-    test_are_set_all_flags();
-    test_are_set_invalid_arguments();
+        report_test(
+            index + 1U,
+            TEST_CASE_COUNT,
+            test_cases[index].description,
+            result);
+    }
 
-    test_null_arguments();
-    test_boundary_bit_31();
+    (void)printf("----------------------------------------\n");
+    (void)printf("Summary\n");
+    (void)printf("----------------------------------------\n");
 
-    printf("Tests: %u, Passed: %u, Failed: %u\n",
-           tests_run,
-           tests_passed,
-           tests_run - tests_passed);
+    (void)printf("Executed : %u/%u\n",
+                 total_tests,
+                 TEST_CASE_COUNT);
 
-    return (tests_run == tests_passed) ? 0 : 1;
+    (void)printf("Passed   : %u/%u (%.0f%%)\n",
+                 passed_tests,
+                 TEST_CASE_COUNT,
+                 (100.0 * (double)passed_tests) /
+                 (double)TEST_CASE_COUNT);
+
+    (void)printf("Failed   : %u/%u (%.0f%%)\n",
+                 total_tests - passed_tests,
+                 TEST_CASE_COUNT,
+                 (100.0 * (double)(total_tests - passed_tests)) /
+                 (double)TEST_CASE_COUNT);
+
+    (void)printf("========================================\n");
+
+    return (passed_tests == TEST_CASE_COUNT)
+               ? EXIT_SUCCESS
+               : EXIT_FAILURE;
 }
