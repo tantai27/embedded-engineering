@@ -1,68 +1,125 @@
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 #include "watchdog_simulator.h"
 
-static uint32_t tests_run = 0U;
-static uint32_t tests_passed = 0U;
+#define TEST_PASS    (0)
+#define TEST_FAIL    (1)
 
-#define TEST_ASSERT(condition)                                      \
-    do                                                              \
-    {                                                               \
-        ++tests_run;                                                \
-        if (condition)                                              \
-        {                                                           \
-            ++tests_passed;                                         \
-        }                                                           \
-        else                                                        \
-        {                                                           \
-            printf("FAIL: %s:%u\n", __FILE__, __LINE__);            \
-        }                                                           \
-    } while (0)
+#define TEST_CASE_COUNT    (10U)
 
-static void test_init_success(void)
+typedef struct
+{
+    const char *description;
+    int (*function)(void);
+} test_case_t;
+
+static uint32_t total_tests = 0U;
+static uint32_t passed_tests = 0U;
+
+static void report_test(uint32_t current_test,
+                        uint32_t planned_tests,
+                        const char *description,
+                        int result)
+{
+    ++total_tests;
+
+    if (TEST_PASS == result)
+    {
+        ++passed_tests;
+    }
+
+    (void)printf("[%02u/%02u] %-30s [%s]\n",
+                 current_test,
+                 planned_tests,
+                 description,
+                 (TEST_PASS == result) ? "PASS" : "FAIL");
+}
+
+static int test_init_success(void)
 {
     watchdog_simulator_t watchdog;
 
-    TEST_ASSERT(
-        WATCHDOG_SIMULATOR_STATUS_SUCCESS ==
-        watchdog_simulator_init(&watchdog, 5U));
+    if (WATCHDOG_SIMULATOR_STATUS_SUCCESS !=
+        watchdog_simulator_init(&watchdog, 5U))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(5U == watchdog.timeout);
-    TEST_ASSERT(0U == watchdog.elapsed);
-    TEST_ASSERT(0U == watchdog.running);
-    TEST_ASSERT(0U == watchdog.expired);
+    if (5U != watchdog.timeout)
+    {
+        return TEST_FAIL;
+    }
+
+    if (0U != watchdog.elapsed)
+    {
+        return TEST_FAIL;
+    }
+
+    if (0U != watchdog.running)
+    {
+        return TEST_FAIL;
+    }
+
+    if (0U != watchdog.expired)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_init_invalid_arguments(void)
+static int test_init_invalid_arguments(void)
 {
     watchdog_simulator_t watchdog;
 
-    TEST_ASSERT(
-        WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT ==
-        watchdog_simulator_init(NULL, 5U));
+    if (WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT !=
+        watchdog_simulator_init(NULL, 5U))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(
-        WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT ==
-        watchdog_simulator_init(&watchdog, 0U));
+    if (WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT !=
+        watchdog_simulator_init(&watchdog, 0U))
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_start(void)
+static int test_start(void)
 {
     watchdog_simulator_t watchdog;
 
     (void)watchdog_simulator_init(&watchdog, 5U);
 
-    TEST_ASSERT(
-        WATCHDOG_SIMULATOR_STATUS_SUCCESS ==
-        watchdog_simulator_start(&watchdog));
+    if (WATCHDOG_SIMULATOR_STATUS_SUCCESS !=
+        watchdog_simulator_start(&watchdog))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0U == watchdog.elapsed);
-    TEST_ASSERT(1U == watchdog.running);
-    TEST_ASSERT(0U == watchdog.expired);
+    if (0U != watchdog.elapsed)
+    {
+        return TEST_FAIL;
+    }
+
+    if (1U != watchdog.running)
+    {
+        return TEST_FAIL;
+    }
+
+    if (0U != watchdog.expired)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_tick_before_timeout(void)
+static int test_tick_before_timeout(void)
 {
     watchdog_simulator_t watchdog;
 
@@ -71,18 +128,42 @@ static void test_tick_before_timeout(void)
 
     (void)watchdog_simulator_tick(&watchdog);
 
-    TEST_ASSERT(1U == watchdog.elapsed);
-    TEST_ASSERT(1U == watchdog.running);
-    TEST_ASSERT(0U == watchdog.expired);
+    if (1U != watchdog.elapsed)
+    {
+        return TEST_FAIL;
+    }
+
+    if (1U != watchdog.running)
+    {
+        return TEST_FAIL;
+    }
+
+    if (0U != watchdog.expired)
+    {
+        return TEST_FAIL;
+    }
 
     (void)watchdog_simulator_tick(&watchdog);
 
-    TEST_ASSERT(2U == watchdog.elapsed);
-    TEST_ASSERT(1U == watchdog.running);
-    TEST_ASSERT(0U == watchdog.expired);
+    if (2U != watchdog.elapsed)
+    {
+        return TEST_FAIL;
+    }
+
+    if (1U != watchdog.running)
+    {
+        return TEST_FAIL;
+    }
+
+    if (0U != watchdog.expired)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_expiration_at_timeout(void)
+static int test_expiration_at_timeout(void)
 {
     watchdog_simulator_t watchdog;
     uint8_t expired = 0U;
@@ -94,18 +175,36 @@ static void test_expiration_at_timeout(void)
     (void)watchdog_simulator_tick(&watchdog);
     (void)watchdog_simulator_tick(&watchdog);
 
-    TEST_ASSERT(3U == watchdog.elapsed);
-    TEST_ASSERT(0U == watchdog.running);
-    TEST_ASSERT(1U == watchdog.expired);
+    if (3U != watchdog.elapsed)
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(
-        WATCHDOG_SIMULATOR_STATUS_SUCCESS ==
-        watchdog_simulator_is_expired(&watchdog, &expired));
+    if (0U != watchdog.running)
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(1U == expired);
+    if (1U != watchdog.expired)
+    {
+        return TEST_FAIL;
+    }
+
+    if (WATCHDOG_SIMULATOR_STATUS_SUCCESS !=
+        watchdog_simulator_is_expired(&watchdog, &expired))
+    {
+        return TEST_FAIL;
+    }
+
+    if (1U != expired)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_feed(void)
+static int test_feed(void)
 {
     watchdog_simulator_t watchdog;
 
@@ -115,18 +214,36 @@ static void test_feed(void)
     (void)watchdog_simulator_tick(&watchdog);
     (void)watchdog_simulator_tick(&watchdog);
 
-    TEST_ASSERT(2U == watchdog.elapsed);
+    if (2U != watchdog.elapsed)
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(
-        WATCHDOG_SIMULATOR_STATUS_SUCCESS ==
-        watchdog_simulator_feed(&watchdog));
+    if (WATCHDOG_SIMULATOR_STATUS_SUCCESS !=
+        watchdog_simulator_feed(&watchdog))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0U == watchdog.elapsed);
-    TEST_ASSERT(1U == watchdog.running);
-    TEST_ASSERT(0U == watchdog.expired);
+    if (0U != watchdog.elapsed)
+    {
+        return TEST_FAIL;
+    }
+
+    if (1U != watchdog.running)
+    {
+        return TEST_FAIL;
+    }
+
+    if (0U != watchdog.expired)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_feed_prevents_expiration(void)
+static int test_feed_prevents_expiration(void)
 {
     watchdog_simulator_t watchdog;
     uint8_t expired = 0U;
@@ -142,16 +259,31 @@ static void test_feed_prevents_expiration(void)
     (void)watchdog_simulator_tick(&watchdog);
     (void)watchdog_simulator_tick(&watchdog);
 
-    TEST_ASSERT(
-        WATCHDOG_SIMULATOR_STATUS_SUCCESS ==
-        watchdog_simulator_is_expired(&watchdog, &expired));
+    if (WATCHDOG_SIMULATOR_STATUS_SUCCESS !=
+        watchdog_simulator_is_expired(&watchdog, &expired))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(0U == expired);
-    TEST_ASSERT(2U == watchdog.elapsed);
-    TEST_ASSERT(1U == watchdog.running);
+    if (0U != expired)
+    {
+        return TEST_FAIL;
+    }
+
+    if (2U != watchdog.elapsed)
+    {
+        return TEST_FAIL;
+    }
+
+    if (1U != watchdog.running)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_start_restarts_watchdog(void)
+static int test_start_restarts_watchdog(void)
 {
     watchdog_simulator_t watchdog;
 
@@ -161,64 +293,168 @@ static void test_start_restarts_watchdog(void)
     (void)watchdog_simulator_tick(&watchdog);
     (void)watchdog_simulator_tick(&watchdog);
 
-    TEST_ASSERT(1U == watchdog.expired);
-    TEST_ASSERT(0U == watchdog.running);
+    if (1U != watchdog.expired)
+    {
+        return TEST_FAIL;
+    }
+
+    if (0U != watchdog.running)
+    {
+        return TEST_FAIL;
+    }
 
     (void)watchdog_simulator_start(&watchdog);
 
-    TEST_ASSERT(0U == watchdog.elapsed);
-    TEST_ASSERT(1U == watchdog.running);
-    TEST_ASSERT(0U == watchdog.expired);
+    if (0U != watchdog.elapsed)
+    {
+        return TEST_FAIL;
+    }
+
+    if (1U != watchdog.running)
+    {
+        return TEST_FAIL;
+    }
+
+    if (0U != watchdog.expired)
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_is_expired_invalid_arguments(void)
+static int test_is_expired_invalid_arguments(void)
 {
     watchdog_simulator_t watchdog;
     uint8_t expired = 0U;
 
     (void)watchdog_simulator_init(&watchdog, 5U);
 
-    TEST_ASSERT(
-        WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT ==
-        watchdog_simulator_is_expired(NULL, &expired));
+    if (WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT !=
+        watchdog_simulator_is_expired(NULL, &expired))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(
-        WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT ==
-        watchdog_simulator_is_expired(&watchdog, NULL));
+    if (WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT !=
+        watchdog_simulator_is_expired(&watchdog, NULL))
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
-static void test_null_arguments(void)
+static int test_null_arguments(void)
 {
-    TEST_ASSERT(
-        WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT ==
-        watchdog_simulator_start(NULL));
+    if (WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT !=
+        watchdog_simulator_start(NULL))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(
-        WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT ==
-        watchdog_simulator_feed(NULL));
+    if (WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT !=
+        watchdog_simulator_feed(NULL))
+    {
+        return TEST_FAIL;
+    }
 
-    TEST_ASSERT(
-        WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT ==
-        watchdog_simulator_tick(NULL));
+    if (WATCHDOG_SIMULATOR_STATUS_INVALID_ARGUMENT !=
+        watchdog_simulator_tick(NULL))
+    {
+        return TEST_FAIL;
+    }
+
+    return TEST_PASS;
 }
 
 int main(void)
 {
-    test_init_success();
-    test_init_invalid_arguments();
-    test_start();
-    test_tick_before_timeout();
-    test_expiration_at_timeout();
-    test_feed();
-    test_feed_prevents_expiration();
-    test_start_restarts_watchdog();
-    test_is_expired_invalid_arguments();
-    test_null_arguments();
+    static const test_case_t test_cases[TEST_CASE_COUNT] =
+    {
+        {
+            "Init success",
+            test_init_success
+        },
+        {
+            "Init invalid arguments",
+            test_init_invalid_arguments
+        },
+        {
+            "Start watchdog",
+            test_start
+        },
+        {
+            "Tick before timeout",
+            test_tick_before_timeout
+        },
+        {
+            "Expiration at timeout",
+            test_expiration_at_timeout
+        },
+        {
+            "Feed watchdog",
+            test_feed
+        },
+        {
+            "Feed prevents expiration",
+            test_feed_prevents_expiration
+        },
+        {
+            "Start restarts watchdog",
+            test_start_restarts_watchdog
+        },
+        {
+            "Is expired invalid arguments",
+            test_is_expired_invalid_arguments
+        },
+        {
+            "Null arguments",
+            test_null_arguments
+        }
+    };
 
-    printf("Tests: %u, Passed: %u, Failed: %u\n",
-           tests_run,
-           tests_passed,
-           tests_run - tests_passed);
+    uint32_t index = 0U;
+    int result = TEST_PASS;
 
-    return (tests_run == tests_passed) ? 0 : 1;
+    (void)printf("========================================\n");
+    (void)printf("Running watchdog_simulator unit tests\n");
+    (void)printf("========================================\n");
+
+    for (index = 0U; index < TEST_CASE_COUNT; ++index)
+    {
+        result = test_cases[index].function();
+
+        report_test(
+            index + 1U,
+            TEST_CASE_COUNT,
+            test_cases[index].description,
+            result);
+    }
+
+    (void)printf("----------------------------------------\n");
+    (void)printf("Summary\n");
+    (void)printf("----------------------------------------\n");
+
+    (void)printf("Executed : %u/%u\n",
+                 total_tests,
+                 TEST_CASE_COUNT);
+
+    (void)printf("Passed   : %u/%u (%.0f%%)\n",
+                 passed_tests,
+                 TEST_CASE_COUNT,
+                 (100.0 * (double)passed_tests) /
+                 (double)TEST_CASE_COUNT);
+
+    (void)printf("Failed   : %u/%u (%.0f%%)\n",
+                 total_tests - passed_tests,
+                 TEST_CASE_COUNT,
+                 (100.0 * (double)(total_tests - passed_tests)) /
+                 (double)TEST_CASE_COUNT);
+
+    (void)printf("========================================\n");
+
+    return (passed_tests == TEST_CASE_COUNT)
+               ? EXIT_SUCCESS
+               : EXIT_FAILURE;
 }
