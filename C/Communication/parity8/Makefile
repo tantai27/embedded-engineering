@@ -14,16 +14,16 @@ OBJS := $(SRCS:.c=.o)
 all: $(TARGET)
 
 $(TARGET): $(OBJS)
-	$(CC) $(CFLAGS) -o $@ $^
+	@echo "LINK    $@"
+	@$(CC) $(CFLAGS) -o $@ $^
 
-parity8.o: parity8.c parity8.h
-	$(CC) $(CFLAGS) -c $< -o $@
-
-parity8_test.o: parity8_test.c parity8.h
-	$(CC) $(CFLAGS) -c $< -o $@
+%.o: %.c
+	@echo "CC      $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
 
 run: $(TARGET)
 	./$(TARGET)
 
 clean:
-	rm -f $(OBJS) $(TARGET)
+	@rm -f $(OBJS) $(TARGET)
+	@echo "CLEAN   build artifacts"
