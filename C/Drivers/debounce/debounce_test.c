@@ -7,7 +7,7 @@
 #define TEST_PASS          (0)
 #define TEST_FAIL          (1)
 
-#define TEST_CASE_COUNT    (10U)
+#define TEST_CASE_COUNT    (11U)
 
 typedef struct
 {
@@ -182,10 +182,12 @@ static int test_bouncing_input_does_not_change_state(void)
 {
     debounce_t debounce;
     uint8_t stable_state = 0U;
+
     static const uint8_t raw_sequence[] =
     {
         1U, 0U, 1U, 0U, 1U, 0U, 1U
     };
+
     uint32_t index = 0U;
 
     if (DEBOUNCE_STATUS_SUCCESS !=
@@ -255,7 +257,7 @@ static int test_candidate_counter_resets_on_state_change(void)
         return TEST_FAIL;
     }
 
-    if ((0U != debounce.consecutive_ticks) ||
+    if ((1U != debounce.consecutive_ticks) ||
         (0U != debounce.candidate_state))
     {
         return TEST_FAIL;
@@ -417,6 +419,10 @@ int main(void)
         {
             "Invalid update arguments",
             test_update_null_arguments
+        },
+        {
+            "Invalid raw state",
+            test_update_invalid_raw_state
         }
     };
 
